@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEOMENIAE · Echoes of the Past</title>
+<style>
+  :root{
+    --teal: #7fd8d1;
+    --teal-strong: #c9f5ef;
+    --teal-dim: rgba(127,216,209,.45);
+    --maroon: #9c4b46;
+    --stone-light: #cfd8dc;
+    --stone-mid: #8b9aa3;
+    --stone-dark: #414d57;
+    --ink: #050709;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--ink);
+    overflow:hidden;
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+  }
+
+  .scene{
+    position:fixed;
+    inset:0;
+    background:#04060a;
+    overflow:hidden;
+  }
+
+  /* Fixed-resolution design canvas (1774x829) that is uniformly scaled to
+     fit any viewport via JS, so the composition never reflows or overlaps. */
+  .canvas{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:1774px;
+    height:829px;
+    margin-left:-887px;
+    margin-top:-414.5px;
+    transform-origin:50% 50%;
+    background:
+      radial-gradient(ellipse at 50% 34%, #131e29 0%, #0a0f16 45%, #04060a 100%);
+  }
+
+  /* ---------- atmosphere ---------- */
+
+  .pillar{
+    position:absolute;
+    top:-5%;
+    bottom:-5%;
+    width:220px;
+    opacity:.55;
+    filter:blur(1.5px);
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,.55) 8px,
+        rgba(20,28,34,.35) 22px,
+        rgba(0,0,0,0) 40px);
+    -webkit-mask-image:linear-gradient(180deg, transparent, black 20%, black 75%, transparent);
+    mask-image:linear-gradient(180deg, transparent, black 20%, black 75%, transparent);
+    z-index:1;
+  }
+  .pillar.left{ left:-70px; }
+  .pillar.right{ right:-70px; transform:scaleX(-1); }
+
+  .haze{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 70%, rgba(90,130,140,.10), transparent 60%),
+      radial-gradient(ellipse 55% 35% at 80% 25%, rgba(90,130,140,.08), transparent 60%);
+    z-index:2;
+    pointer-events:none;
+  }
+
+  .vignette{
+    position:absolute; inset:0;
+    background:radial-gradient(ellipse at 50% 46%, transparent 35%, rgba(0,0,0,.35) 75%, rgba(0,0,0,.75) 100%);
+    pointer-events:none;
+    z-index:9;
+  }
+
+  .particles{ position:absolute; inset:0; z-index:4; pointer-events:none; }
+  .particle{
+    position:absolute;
+    border-radius:50%;
+    background:#dff3f0;
+    box-shadow:0 0 4px 1px rgba(180,230,225,.6);
+    animation:twinkle linear infinite, drift ease-in-out infinite;
+  }
+
+  @keyframes twinkle{
+    0%,100%{opacity:.12;}
+    50%{opacity:.95;}
+  }
+  @keyframes drift{
+    0%{ transform:translateY(0); }
+    50%{ transform:translateY(-18px); }
+    100%{ transform:translateY(0); }
+  }
+
+  /* ---------- top bar ---------- */
+
+  .topbar{
+    position:absolute;
+    top:26px; left:32px;
+    display:flex;
+    align-items:center;
+    gap:26px;
+    z-index:10;
+    color:#dbe4e7;
+  }
+  .icon-back{
+    font-size:22px;
+    font-weight:300;
+    opacity:.85;
+    transform:scaleY(1.2);
+  }
+  .icon-logo{
+    width:30px;height:30px;
+    border:1px solid rgba(219,228,231,.7);
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,'Times New Roman',serif;
+    font-size:14px;
+    opacity:.85;
+  }
+  .icon-menu{ display:flex; flex-direction:column; gap:4px; }
+  .icon-menu span{ display:block; height:1px; background:#dbe4e7; opacity:.8; }
+  .icon-menu span:nth-child(1){ width:20px; }
+  .icon-menu span:nth-child(2){ width:14px; }
+  .icon-menu span:nth-child(3){ width:20px; }
+
+  /* ---------- light beam ---------- */
+
+  .beam-wrap{
+    position:absolute;
+    left:0; right:0;
+    top:33%;
+    height:60px;
+    z-index:5;
+    overflow:hidden;
+    mix-blend-mode:screen;
+    pointer-events:none;
+  }
+  .beam{
+    position:absolute;
+    left:-30%;
+    top:50%;
+    width:160%;
+    height:2px;
+    transform:translateY(-50%);
+    background:linear-gradient(90deg,
+      transparent 0%,
+      rgba(127,216,209,0) 10%,
+      rgba(127,216,209,.55) 45%,
+      rgba(201,245,239,.9) 50%,
+      rgba(127,216,209,.55) 55%,
+      rgba(127,216,209,0) 90%,
+      transparent 100%);
+    filter:blur(2px);
+    animation:beamSweep 9s ease-in-out infinite;
+  }
+  @keyframes beamSweep{
+    0%{ transform:translate(-18%,-50%); opacity:0; }
+    12%{ opacity:1; }
+    50%{ transform:translate(6%,-50%); opacity:1; }
+    88%{ opacity:1; }
+    100%{ transform:translate(18%,-50%); opacity:0; }
+  }
+
+  /* ---------- relics (tablets) ---------- */
+
+  .relics{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-evenly;
+    padding:0 50px;
+    z-index:6;
+  }
+
+  .relic{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    width:280px;
+    opacity:0;
+    animation:riseIn 1.4s cubic-bezier(.2,.7,.2,1) forwards;
+    animation-delay:calc(var(--i) * .35s + .2s);
+  }
+  .relic.center{ align-items:center; }
+  .relic.right{ align-items:flex-end; }
+
+  @keyframes riseIn{
+    from{ opacity:0; transform:translateY(46px) scale(.92); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .stage{
+    position:relative;
+    width:100%;
+    aspect-ratio:200/240;
+    animation:bob 6s ease-in-out infinite;
+    animation-delay:calc(var(--i) * .4s);
+  }
+  @keyframes bob{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-10px); }
+  }
+
+  .glow-blob{
+    position:absolute;
+    inset:-20%;
+    background:radial-gradient(circle, var(--teal-dim), transparent 65%);
+    filter:blur(18px);
+    z-index:1;
+    animation:glowPulse 4.5s ease-in-out infinite;
+  }
+  @keyframes glowPulse{
+    0%,100%{ opacity:.5; }
+    50%{ opacity:1; }
+  }
+
+  .ring{
+    position:absolute;
+    inset:-32%;
+    z-index:2;
+    overflow:visible;
+  }
+  .ring.outer{ animation:spin 50s linear infinite; }
+  .ring.inner{ inset:-8%; animation:spin 34s linear infinite reverse; }
+  .relic.right .ring.outer{ animation-direction:reverse; }
+  .relic.right .ring.inner{ animation-direction:normal; }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .rock-svg{ position:relative; z-index:3; width:100%; height:100%; }
+
+  .stone-shape{
+    fill:url(#stoneGradient);
+    stroke:rgba(230,240,242,.55);
+    stroke-width:1;
+  }
+  .facet-line{
+    stroke:rgba(10,14,18,.35);
+    stroke-width:1;
+    fill:none;
+  }
+  .crack{
+    stroke:rgba(8,12,16,.55);
+    stroke-width:1.1;
+    fill:none;
+    stroke-linecap:round;
+  }
+  .crack.glow{
+    stroke:var(--teal-strong);
+    stroke-width:1;
+    opacity:.7;
+    filter:url(#softGlow);
+  }
+  .engrave{
+    stroke:var(--teal);
+    fill:none;
+    stroke-width:1.3;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    filter:url(#softGlow);
+    animation:enPulse 3.6s ease-in-out infinite;
+  }
+  .engrave.dot{ fill:var(--teal); stroke:none; }
+  @keyframes enPulse{
+    0%,100%{ opacity:.65; }
+    50%{ opacity:1; }
+  }
+
+  .ring-circle{
+    fill:none;
+    stroke:rgba(219,228,231,.4);
+    stroke-width:.8;
+  }
+  .ring-node{ fill:#dbe4e7; opacity:.8; }
+  .ring-node.hollow{ fill:none; stroke:#dbe4e7; stroke-width:1; opacity:.7; }
+  .ring-node.moon{ fill:#dbe4e7; opacity:.85; }
+
+  /* ---------- labels ---------- */
+
+  .labels{
+    margin-top:-14%;
+    z-index:7;
+    position:relative;
+    padding:0 4px;
+  }
+  .relic.center .labels{ text-align:center; }
+  .relic.right .labels{ text-align:right; }
+
+  .title-cn{
+    margin:0;
+    font-size:32px;
+    font-weight:700;
+    color:#f2f6f7;
+    text-shadow:0 0 10px rgba(210,235,232,.35);
+    letter-spacing:1px;
+  }
+  .sub-cn{
+    margin:2px 0 0;
+    font-size:13px;
+    color:var(--teal);
+    opacity:.75;
+    letter-spacing:3px;
+  }
+  .sub-en{
+    margin:4px 0 0;
+    font-size:11px;
+    color:var(--maroon);
+    letter-spacing:3px;
+    text-transform:uppercase;
+    opacity:.85;
+  }
+
+  /* ---------- footer ---------- */
+
+  .footer{
+    position:absolute;
+    left:50%; bottom:6%;
+    transform:translateX(-50%);
+    text-align:center;
+    z-index:8;
+    color:#a9b7bc;
+    width:90%;
+    opacity:0;
+    animation:fadeIn 1.5s ease forwards;
+    animation-delay:1.4s;
+  }
+  @keyframes fadeIn{ to{ opacity:1; } }
+
+  .footer-title{
+    font-size:11px;
+    letter-spacing:7px;
+    opacity:.75;
+  }
+  .footer-script{
+    margin-top:6px;
+    font-family:Georgia,'Times New Roman',serif;
+    font-style:italic;
+    font-size:28px;
+    color:var(--teal);
+    letter-spacing:1px;
+    text-shadow:0 0 12px rgba(127,216,209,.4);
+  }
+  .footer-quote{
+    margin-top:8px;
+    font-size:10px;
+    letter-spacing:1px;
+    color:rgba(200,215,218,.35);
+    font-style:italic;
+  }
+  .progress{
+    margin:16px auto 0;
+    width:130px;
+    height:2px;
+    border-radius:2px;
+    background:rgba(219,228,231,.18);
+    overflow:hidden;
+  }
+  .progress-fill{
+    width:40%;
+    height:100%;
+    background:linear-gradient(90deg,var(--teal-strong),var(--teal),transparent);
+    animation:loadShift 3.2s ease-in-out infinite;
+  }
+  @keyframes loadShift{
+    0%,100%{ transform:translateX(0); }
+    50%{ transform:translateX(120px); }
+  }
+
+</style>
+</head>
+<body>
+<div class="scene">
+<div class="canvas" id="canvas">
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="stoneGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#dbe4e6"/>
+        <stop offset="45%" stop-color="#98a7ae"/>
+        <stop offset="100%" stop-color="#3d4750"/>
+      </linearGradient>
+      <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="1.6" result="blur"/>
+        <feMerge>
+          <feMergeNode in="blur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="pillar left"></div>
+  <div class="pillar right"></div>
+  <div class="haze"></div>
+
+  <div class="topbar">
+    <span class="icon-back">&#8249;</span>
+    <span class="icon-logo">M</span>
+    <span class="icon-menu"><span></span><span></span><span></span></span>
+  </div>
+
+  <div class="beam-wrap"><div class="beam"></div></div>
+
+  <div class="particles" id="particles"></div>
+
+  <div class="relics">
+
+    <!-- Relic 1: spiral runes -->
+    <div class="relic" style="--i:0">
+      <div class="stage">
+        <div class="glow-blob"></div>
+
+        <svg class="ring outer" viewBox="0 0 300 300">
+          <circle class="ring-circle" cx="150" cy="150" r="130"/>
+          <circle class="ring-node" cx="150" cy="20" r="3"/>
+          <circle class="ring-node hollow" cx="266" cy="98" r="3.5"/>
+          <path class="ring-node moon" d="M40,190 a9,9 0 1 0 0.1,0 z" fill="#0a0f16"/>
+          <path class="ring-node moon" d="M40,190 a9,9 0 0 1 0,-18 a5,5 0 0 0 0,18 z"/>
+        </svg>
+        <svg class="ring inner" viewBox="0 0 300 300">
+          <circle class="ring-circle" cx="150" cy="150" r="105"/>
+          <circle class="ring-node hollow" cx="150" cy="45" r="3"/>
+          <circle class="ring-node" cx="248" cy="215" r="2.6"/>
+        </svg>
+
+        <svg class="rock-svg" viewBox="0 0 200 240">
+          <polygon class="stone-shape" points="72,8 128,4 162,38 178,88 168,138 148,182 118,222 82,232 50,208 28,168 18,118 26,70 44,34"/>
+          <g class="facet-line">
+            <path d="M100,120 L72,8"/>
+            <path d="M100,120 L178,88"/>
+            <path d="M100,120 L118,222"/>
+            <path d="M100,120 L28,168"/>
+          </g>
+          <g class="crack">
+            <path d="M132,20 L138,58 L128,86"/>
+          </g>
+          <g class="engrave">
+            <path d="M100,120 q18,-6 21,13 q3,19 -17,21 q-19,2 -23,-17 q-4,-19 15,-25 q19,-6 31,9 q12,15 -1,31 q-13,15 -33,10 q-21,-6 -26,-27"/>
+            <circle cx="100" cy="120" r="36" fill="none" stroke-width=".7" opacity=".5"/>
+            <circle cx="100" cy="120" r="46" fill="none" stroke-width=".6" opacity=".35"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="labels">
+        <p class="title-cn">纹章解析</p>
+        <p class="sub-cn">铭刻之语</p>
+        <p class="sub-en">Elder Tongue</p>
+      </div>
+    </div>
+
+    <!-- Relic 2: circuit lines -->
+    <div class="relic center" style="--i:1">
+      <div class="stage">
+        <div class="glow-blob"></div>
+
+        <svg class="ring outer" viewBox="0 0 300 300">
+          <circle class="ring-circle" cx="150" cy="150" r="132"/>
+          <circle class="ring-node" cx="150" cy="18" r="3"/>
+          <circle class="ring-node hollow" cx="270" cy="150" r="3.5"/>
+          <circle class="ring-node" cx="150" cy="282" r="3"/>
+        </svg>
+        <svg class="ring inner" viewBox="0 0 300 300">
+          <circle class="ring-circle" cx="150" cy="150" r="100"/>
+          <circle class="ring-node hollow" cx="228" cy="80" r="3"/>
+        </svg>
+
+        <svg class="rock-svg" viewBox="0 0 200 240">
+          <polygon class="stone-shape" points="78,6 122,10 150,40 168,80 172,130 156,178 132,214 104,234 82,216 62,182 46,140 40,92 52,50 60,20"/>
+          <g class="facet-line">
+            <path d="M104,128 L78,6"/>
+            <path d="M104,128 L172,130"/>
+            <path d="M104,128 L104,234"/>
+            <path d="M104,128 L40,92"/>
+          </g>
+          <g class="crack glow">
+            <path d="M96,60 L90,110 L100,150 L92,200"/>
+          </g>
+          <g class="engrave">
+            <path d="M74,72 L74,108 L98,108 L98,148 L132,148 L132,100 L152,100"/>
+            <path d="M98,108 L62,128"/>
+            <rect x="71.5" y="69.5" width="5" height="5"/>
+            <rect x="71.5" y="105.5" width="5" height="5"/>
+            <rect x="95.5" y="105.5" width="5" height="5"/>
+            <rect x="95.5" y="145.5" width="5" height="5"/>
+            <rect x="129.5" y="145.5" width="5" height="5"/>
+            <rect x="129.5" y="97.5" width="5" height="5"/>
+            <polygon points="134,128 119,153 89,153 74,128 89,103 119,103" fill="none" opacity=".55"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="labels">
+        <p class="title-cn">奇物收录</p>
+        <p class="sub-cn">秘史遗物</p>
+        <p class="sub-en">Relic Codex</p>
+      </div>
+    </div>
+
+    <!-- Relic 3: dotted rivets -->
+    <div class="relic right" style="--i:2">
+      <div class="stage">
+        <div class="glow-blob"></div>
+
+        <svg class="ring outer" viewBox="0 0 300 300">
+          <circle class="ring-circle" cx="150" cy="150" r="128"/>
+          <circle class="ring-node" cx="150" cy="24" r="3"/>
+          <path class="ring-node moon" d="M255,205 a9,9 0 0 1 0,-18 a5,5 0 0 0 0,18 z"/>
+        </svg>
+        <svg class="ring inner" viewBox="0 0 300 300">
+          <circle class="ring-circle" cx="150" cy="150" r="103"/>
+          <circle class="ring-node hollow" cx="80" cy="220" r="3"/>
+        </svg>
+
+        <svg class="rock-svg" viewBox="0 0 200 240">
+          <polygon class="stone-shape" points="72,8 128,4 162,38 178,88 168,138 148,182 118,222 82,232 50,208 28,168 18,118 26,70 44,34"/>
+          <g class="facet-line">
+            <path d="M100,120 L128,4"/>
+            <path d="M100,120 L168,138"/>
+            <path d="M100,120 L82,232"/>
+            <path d="M100,120 L18,118"/>
+          </g>
+          <g class="crack">
+            <path d="M62,40 L70,80 L60,116"/>
+          </g>
+          <g class="engrave dot">
+            <circle cx="80" cy="60" r="2.3"/>
+            <circle cx="102" cy="56" r="2.3"/>
+            <circle cx="124" cy="64" r="2.3"/>
+            <circle cx="70" cy="92" r="2.3"/>
+            <circle cx="96" cy="88" r="2.3"/>
+            <circle cx="120" cy="94" r="2.3"/>
+            <circle cx="142" cy="104" r="2.3"/>
+            <circle cx="76" cy="122" r="2.3"/>
+            <circle cx="100" cy="120" r="2.3"/>
+            <circle cx="126" cy="124" r="2.3"/>
+            <circle cx="150" cy="132" r="2.3"/>
+            <circle cx="86" cy="152" r="2.3"/>
+            <circle cx="112" cy="154" r="2.3"/>
+            <circle cx="134" cy="160" r="2.3"/>
+            <circle cx="98" cy="184" r="2.3"/>
+            <circle cx="122" cy="186" r="2.3"/>
+          </g>
+          <g class="engrave">
+            <path d="M80,60 L124,64" stroke-width=".7" opacity=".5"/>
+            <path d="M76,122 L150,132" stroke-width=".7" opacity=".5"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="labels">
+        <p class="title-cn">剧情回顾</p>
+        <p class="sub-cn">记录书册</p>
+        <p class="sub-en">Dream Scripture</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-title">NEOMENIAE</div>
+    <div class="footer-script">Echoes of the Past</div>
+    <div class="footer-quote">Beneath the moon and the stars, the stars made obeisant to me</div>
+    <div class="progress"><div class="progress-fill"></div></div>
+  </div>
+
+  <div class="vignette"></div>
+</div>
+</div>
+
+<script>
+  (function(){
+    var canvas = document.getElementById('canvas');
+    var REF_W = 1774, REF_H = 829;
+    function fit(){
+      var s = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
+      canvas.style.transform = 'scale(' + s + ')';
+    }
+    window.addEventListener('resize', fit);
+    fit();
+  })();
+
+  (function(){
+    var container = document.getElementById('particles');
+    var count = 70;
+    var frag = document.createDocumentFragment();
+    for(var i=0;i<count;i++){
+      var p = document.createElement('div');
+      p.className = 'particle';
+      var size = (Math.random()*2.2+0.6).toFixed(2);
+      p.style.width = size+'px';
+      p.style.height = size+'px';
+      p.style.left = (Math.random()*100).toFixed(2)+'%';
+      p.style.top = (Math.random()*100).toFixed(2)+'%';
+      p.style.opacity = (Math.random()*.5+.2).toFixed(2);
+      p.style.animationDuration = (Math.random()*4+3).toFixed(2)+'s, '+(Math.random()*6+5).toFixed(2)+'s';
+      p.style.animationDelay = (Math.random()*5).toFixed(2)+'s, '+(Math.random()*5).toFixed(2)+'s';
+      frag.appendChild(p);
+    }
+    container.appendChild(frag);
+  })();
+</script>
+
+</body>
+</html>
